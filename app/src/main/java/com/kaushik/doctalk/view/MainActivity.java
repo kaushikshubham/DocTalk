@@ -1,53 +1,98 @@
 package com.kaushik.doctalk.view;
 
+import android.arch.lifecycle.ViewModelProviders;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
-import android.view.View;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.support.v7.widget.DefaultItemAnimator;
+import android.support.v7.widget.DividerItemDecoration;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.util.Log;
+import android.widget.EditText;
 
 import com.kaushik.doctalk.R;
+import com.kaushik.doctalk.adapter.OnLoadMoreListener;
+import com.kaushik.doctalk.adapter.UsersAdapter;
+import com.kaushik.doctalk.network.dataModel.Data;
+import com.kaushik.doctalk.view.viewModel.Presenter;
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.Unbinder;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.observers.DisposableObserver;
 
-public class MainActivity extends AppCompatActivity {
+import static com.kaushik.doctalk.utility.Utils.TAG;
+
+public class MainActivity extends AppCompatActivity implements OnLoadMoreListener {
+
+    @BindView(R.id.input_search)
+    EditText inputSearch;
+    @BindView(R.id.recycler_view)
+    RecyclerView recyclerView;
+    private Unbinder unbinder;
+
+    private CompositeDisposable disposable = new CompositeDisposable();
+    private UsersAdapter mAdapter;
+    private Presenter presenter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+        unbinder = ButterKnife.bind(this);
+        initRecyclerView();
+
+        presenter = ViewModelProviders.of(this).get(Presenter.class);
+
+        DisposableObserver observer = getSearchObserver();
+        disposable.add(presenter.getData().subscribeWith(observer));
+        disposable.add(presenter.getSearchEventObservable(inputSearch));
+        disposable.add(observer);
+
+        presenter.onStart();
+    }
+
+    private void initRecyclerView() {
+        mAdapter = new UsersAdapter(this, recyclerView,this);
+        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getApplicationContext());
+        recyclerView.setLayoutManager(mLayoutManager);
+        recyclerView.setItemAnimator(new DefaultItemAnimator());
+        recyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
+        recyclerView.setAdapter(mAdapter);
+    }
+
+    private DisposableObserver<Data> getSearchObserver() {
+        return new DisposableObserver<Data>() {
             @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+            public void onNext(Data data) {
+                Log.e(TAG, "onNext: " + data);
+                mAdapter.setData(data);
             }
-        });
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e.getMessage());
+            }
+
+            @Override
+            public void onComplete() {
+                Log.v(TAG, "onComplete ");
+            }
+        };
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
+    protected void onDestroy() {
+        disposable.clear();
+        unbinder.unbind();
+        mAdapter.onDestroy();
+        super.onDestroy();
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
+    public void onLoadMore() {
+        Log.v(TAG,"onLoadMore called");
+        presenter.fetchMoreData();
     }
 }
