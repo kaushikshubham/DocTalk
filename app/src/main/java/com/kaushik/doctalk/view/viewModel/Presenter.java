@@ -3,9 +3,7 @@ package com.kaushik.doctalk.view.viewModel;
 
 import android.arch.lifecycle.ViewModel;
 import android.util.Log;
-import android.widget.EditText;
 
-import com.jakewharton.rxbinding2.widget.RxTextView;
 import com.jakewharton.rxbinding2.widget.TextViewTextChangeEvent;
 import com.kaushik.doctalk.network.ApiClient;
 import com.kaushik.doctalk.network.BaseApiService;
@@ -17,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
 import io.reactivex.observers.DisposableObserver;
 import io.reactivex.schedulers.Schedulers;
@@ -42,16 +39,7 @@ public class Presenter extends ViewModel {
         apiService = null;
     }
 
-    public Disposable getSearchEventObservable(EditText inputSearch) {
-        return RxTextView.textChangeEvents(inputSearch)
-                .skipInitialValue()
-                .debounce(300, TimeUnit.MILLISECONDS)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeWith(searchContactsTextWatcher());
-    }
-
-    private DisposableObserver<TextViewTextChangeEvent> searchContactsTextWatcher() {
+    public DisposableObserver<TextViewTextChangeEvent> searchContactsTextWatcher() {
         return new DisposableObserver<TextViewTextChangeEvent>() {
             @Override
             public void onNext(TextViewTextChangeEvent textViewTextChangeEvent) {

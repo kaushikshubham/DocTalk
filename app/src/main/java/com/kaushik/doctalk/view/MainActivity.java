@@ -10,16 +10,23 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.widget.EditText;
 
+import com.jakewharton.rxbinding2.widget.RxTextView;
 import com.kaushik.doctalk.R;
 import com.kaushik.doctalk.adapter.OnLoadMoreListener;
 import com.kaushik.doctalk.adapter.UsersAdapter;
 import com.kaushik.doctalk.network.dataModel.Data;
 import com.kaushik.doctalk.view.viewModel.Presenter;
+
+import java.util.concurrent.TimeUnit;
+
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.Unbinder;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.observers.DisposableObserver;
+import io.reactivex.schedulers.Schedulers;
 
 import static com.kaushik.doctalk.utility.Utils.TAG;
 
@@ -47,7 +54,7 @@ public class MainActivity extends AppCompatActivity implements OnLoadMoreListene
 
         DisposableObserver observer = getSearchObserver();
         disposable.add(presenter.getData().subscribeWith(observer));
-        disposable.add(presenter.getSearchEventObservable(inputSearch));
+        disposable.add(getSearchEventObservable(inputSearch));
         disposable.add(observer);
 
         presenter.onStart();
@@ -94,5 +101,14 @@ public class MainActivity extends AppCompatActivity implements OnLoadMoreListene
     public void onLoadMore() {
         Log.v(TAG,"onLoadMore called");
         presenter.fetchMoreData();
+    }
+
+    private Disposable getSearchEventObservable(EditText inputSearch) {
+        return RxTextView.textChangeEvents(inputSearch)
+                .skipInitialValue()
+                .debounce(300, TimeUnit.MILLISECONDS)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeWith(presenter.searchContactsTextWatcher());
     }
 }
